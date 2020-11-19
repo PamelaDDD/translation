@@ -16,7 +16,7 @@ class Encoder(nn.Module):
         #input_seqs -> lengths(list[int])-Varibale 中每个序列的长度
         packed = torch.nn.utils.rnn.pack_padded_sequence(embedded,input_lengths,enforce_sorted=False) #压紧
         outputs,hidden = self.gru(packed,hidden)
-        outputs,output_lengths = torch.nn.utils.rnn.pad_packed_sequence(outputs)
+        outputs,output_lengths = torch.nn.utils.rnn.pad_packed_sequence(outputs,batch_first=True)
         #outputs -> [seq_len,batch,hid_dim * n directions]
         #output_lengths->[batch]
         return outputs,hidden
@@ -104,7 +104,7 @@ class Seq2seq(nn.Module):
     def forward(self,input_batches,input_lengths,target_batches=None,target_lengths=None,teacher_forcing_ratio=0.5):
         #input_batches -> target_batches = [seq_len,batch]
         batch_size = input_batches.size(1)
-        BOS_token = self.basic_dict["<bos>"]
+        BOS_token = self.basic_dict['<bos>']
         EOS_token = self.basic_dict["<eos>"]
         PAD_token = self.basic_dict["<pad>"]
 

@@ -7,6 +7,8 @@ import vocab as vb
 import time
 import math
 import random
+import unicodedata
+import re
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -39,6 +41,17 @@ id2ch = {v:k for k,v in ch2id.items()}
 #利用字典，映射数据
 en_num_data = [[en2id[en] for en in line] for line in en_token_list]
 ch_num_data = [[ch2id[ch] for ch in line] for line in ch_token_list]
+
+def unicodeToAscii(s):
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', s)
+        if unicodedata.category(c) != 'Mn'
+    )
+def normalizeString(s):
+    s = unicodeToAscii(s.lower().strip())
+    s = re.sub(r"([.!?]|[，。？！])", r" ", s)
+    # s = re.sub(r"[^a-zA-Z.!?]+", r" ", s)
+    return s
 
 #表示为dataset
 class TranslationDataset(Dataset):
