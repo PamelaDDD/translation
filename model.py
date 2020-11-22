@@ -73,6 +73,26 @@ class Decoder(nn.Module):
         #output -> [batch,output_dim]
         return output,hidden
 
+class Attn(nn.Module):
+    def __init__(self,method,hidden_size):
+        super(Attn, self).__init__()
+        self.method = method
+        if self.method not in ['dot','general','concat']:
+            raise ValueError(self.method,"is not an appropriate attention method.")
+        self.hidden_size = hidden_size
+        if self.method == 'general':
+            self.attn = nn.Linear(self.hidden_size,hidden_size)
+        elif self.method == 'concat':
+            self.attn = nn.Linear(self.hidden_size * 2,hidden_size)
+            self.v = nn.Parameter(torch.FloatTensor(hidden_size))
+
+    def dot_score(self,hidden,encoder_output):
+        return torch.sum(hidden * encoder_output,dim=2)  #[seq_len,batch]
+    def general_score(self,hidden,encoder_output):
+        energy = self.attn(encoder_output)
+        return torch.sum(hidden * energy,dim=2)
+    def concat_score(self,hidden,encoder_output):
+        energy = self.attn(torch.cat((hidden.expand(encoder_output.size(0),-1,-1),encoder_output),2)).tanh()
 
 class Seq2seq(nn.Module):
     def __init__(self,

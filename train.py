@@ -8,13 +8,14 @@ from torch.utils.data import Dataset, DataLoader
 from tools import showPlot
 from vocab import *
 import vocab as vb
-from dataset import normalizeString
+from test import evaluateRandomly
 
 vb._init()
 import os
 import torch
+import pickle
 
-device_ids = [1, 2, 3, 4]
+# device_ids = [1, 2, 3, 4]
 
 
 def epoch_time(start_time, end_time):
@@ -89,53 +90,77 @@ def evaluate(model, data_loader, print_every=None):
 
 
 if __name__ == '__main__':
+    log = open('./result/train_log.txt',"w+")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    # 读取数据
-    data = []
-    with open('./data/en-ch_word.txt', 'r', encoding='utf-8') as f:
-        for line in f.readlines():
-            line = normalizeString(line.strip())
-            data.append(line)
+    # # 读取数据
+    # data = []
+    # with open('./data/en-ch_word.txt', 'r', encoding='utf-8') as f:
+    #     for line in f.readlines():
+    #         line = normalizeString(line.strip())
+    #         data.append(line)
+    #
+    # # 分割英文数据和中文数据
+    # en_data = [line.lower().split('\t')[0] for line in data]
+    # ch_data = [line.split('\t')[1] for line in data]
+    # print('英文数据:\n', en_data[:10])
+    # print('中文数据:\n', ch_data[:10])
+    #
+    # # 按词级切割，并添加<eos>
+    # en_token_list = [[c for c in line.split(' ') if c != ''] + ['<eos>'] for line in en_data]
+    # ch_token_list = [[c for c in line.split(' ') if c != ''] + ['<eos>'] for line in ch_data]
+    # print('英文数据:\n', en_token_list[:2])
+    # print('\n中文数据:\n', ch_token_list[:2])
+    #
+    # # 基本字典
+    # basic_dict = {'<pad>': 0, '<unk>': 1, '<bos>': 2, '<eos>': 3}
+    # # 分别生成英文字典
+    # en_vocab = set()
+    # for line in en_data:
+    #     for word in line.split(' '):
+    #         en_vocab.add(word)
+    # en2id = {c: i + len(basic_dict) for i, c in enumerate(en_vocab)}
+    # en2id.update(basic_dict)
+    # id2en = {v: k for k, v in en2id.items()}
+    #
+    #
+    # # 生成中文词典
+    # ch_vocab = set()
+    # for line in ch_data:
+    #     for word in line.split(' '):
+    #         ch_vocab.add(word)
+    # ch2id = {c: i + len(basic_dict) for i, c in enumerate(ch_vocab)}
+    # ch2id.update(basic_dict)
+    # id2ch = {v: k for k, v in ch2id.items()}
+    #
+    # # 利用字典，映射数据
+    # en_num_data = [[en2id[en] for en in line] for line in en_token_list]
+    # ch_num_data = [[ch2id[ch] for ch in line] for line in ch_token_list]
 
-    # 分割英文数据和中文数据
-    en_data = [line.lower().split('\t')[0] for line in data]
-    ch_data = [line.split('\t')[1] for line in data]
-    print('英文数据:\n', en_data[:10])
-    print('中文数据:\n', ch_data[:10])
+    #Load data
+    with open('ch2id.pickle','rb') as handle:
+        ch2id = pickle.load(handle)
 
-    # 按词级切割，并添加<eos>
-    en_token_list = [[c for c in line.split(' ') if c != ''] + ['<eos>'] for line in en_data]
-    ch_token_list = [[c for c in line.split(' ') if c != ''] + ['<eos>'] for line in ch_data]
-    print('英文数据:\n', en_token_list[:2])
-    print('\n中文数据:\n', ch_token_list[:2])
+    with open('id2ch.pickle','rb') as handle:
+        id2ch = pickle.load(handle)
 
-    # 基本字典
-    basic_dict = {'<pad>': 0, '<unk>': 1, '<bos>': 2, '<eos>': 3}
-    # 分别生成英文字典
-    en_vocab = set()
-    for line in en_data:
-        for word in line.split(' '):
-            en_vocab.add(word)
-    en2id = {c: i + len(basic_dict) for i, c in enumerate(en_vocab)}
-    en2id.update(basic_dict)
-    id2en = {v: k for k, v in en2id.items()}
+    with open('ch_num_data.pickle','rb') as handle:
+        ch_num_data = pickle.load(handle)
+
+    with open('en2id.pickle', 'rb') as handle:
+        en2id = pickle.load(handle)
+
+    with open('id2en.pickle', 'rb') as handle:
+        id2en = pickle.load(handle)
+
+    with open('en_num_data.pickle', 'rb') as handle:
+        en_num_data = pickle.load(handle)
+
+    with open('basic_dict.pickle', 'rb') as handle:
+        basic_dict = pickle.load(handle)
 
 
-    # 生成中文词典
-    ch_vocab = set()
-    for line in ch_data:
-        for word in line.split(' '):
-            ch_vocab.add(word)
-    ch2id = {c: i + len(basic_dict) for i, c in enumerate(ch_vocab)}
-    ch2id.update(basic_dict)
-    id2ch = {v: k for k, v in ch2id.items()}
-
-    # 利用字典，映射数据
-    en_num_data = [[en2id[en] for en in line] for line in en_token_list]
-    ch_num_data = [[ch2id[ch] for ch in line] for line in ch_token_list]
-
-    print("char:",ch_data[1])
-    print("index:",ch_num_data[1])
+    # print("char:",ch_data[1])
+    # print("index:",ch_num_data[1])
 
     vb.set_value('en2id', en2id)
     vb.set_value('id2en', id2en)
@@ -144,6 +169,7 @@ if __name__ == '__main__':
 
     INPUT_DIM = len(ch2id)
     OUTPUT_DIM = len(en2id)
+
 
     bidirectional = True
     enc = Encoder(INPUT_DIM, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT, bidirectional)
@@ -170,13 +196,16 @@ if __name__ == '__main__':
 
         if vaild_loss < best_valid_loss:
             best_valid_loss = vaild_loss
-            torch.save(model.state_dict(), 'ch2en-model.pt')
+            torch.save(model.state_dict(), 'ch2en-model-word.pt')
+
         if epoch % 2 == 0:
+            evaluateRandomly(ch_num_data=ch_num_data,en_num_data=en_num_data,id2ch=id2ch,id2en=id2en,model=model,n=10)
             epoch_mins, epoch_secs = epoch_time(start_time, end_time)
-            print(f'Epoch:{epoch + 1:02} | Time:{epoch_mins}m {epoch_secs}s')
-            print(f'\tTrain loss: {train_loss:.3f} | Val.Loss:{vaild_loss:.3f}')
-    print("best valid loss:", best_valid_loss)
+            print(f'Epoch:{epoch + 1:02} | Time:{epoch_mins}m {epoch_secs}s',file=log)
+            print(f'\tTrain loss: {train_loss:.3f} | Val.Loss:{vaild_loss:.3f}',file=log)
+
+    print("best valid loss:", best_valid_loss,file=log)
     showPlot(epoch_train_losses, './result/train_loss.png')
     showPlot(epoch_val_losses, './result/val_loss.png')
 
-    model.load_state_dict(torch.load('ch2en-model-word.pt'))
+    # model.load_state_dict(torch.load('ch2en-model_word.pt'))

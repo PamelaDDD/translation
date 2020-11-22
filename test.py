@@ -1,18 +1,40 @@
 from model import *
 from config import *
 from torch import optim
-from dataset import normalizeString
+from generate_vocab_dict import normalizeString
+
 seed = 2000
-def translate(model,sample,idx2token=None):
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+def translate(model, sample, idx2token=None):
     model.predict = True
     model.eval()
-    #shape -> [seq_len,1]
+    # shape -> [seq_len,1]
     input_batch = sample["src"]
-    #list
+    # list
     input_len = sample["src_len"]
-    output_tokens = model(input_batch,input_len)
+    output_tokens = model(input_batch, input_len)
     output_tokens = [idx2token[t] for t in output_tokens]
-    return "".join(output_tokens)
+    return " ".join(output_tokens)
+
+
+def evaluateRandomly(ch_num_data,en_num_data,id2ch,id2en,model,n=10):
+    random.seed(seed)
+    for i in random.sample(range(len(ch_num_data)), 10):  # 随机看10个
+        ch_tokens = list(filter(lambda x: x != 0, ch_num_data[i]))
+        en_tokens = list(filter(lambda x: x != 3 and x != 0, en_num_data[i]))
+        sentence = [id2ch[t] for t in ch_tokens]
+        print("【原文】")
+        print("".join(sentence))
+        translation = [id2en[t] for t in en_tokens]
+        print("【人为翻译】")
+        print(" ".join(translation))
+        test_sample = {}
+        test_sample["src"] = torch.tensor(ch_tokens, dtype=torch.long, device=device).reshape(-1, 1)
+        test_sample["src_len"] = [len(ch_tokens)]
+        print("【机器翻译】")
+        print(translate(model, test_sample, id2en), end="\n\n")
+
 
 if __name__ == '__main__':
     device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
@@ -46,7 +68,6 @@ if __name__ == '__main__':
     en2id.update(basic_dict)
     id2en = {v: k for k, v in en2id.items()}
 
-
     # 生成中文词典
     ch_vocab = set()
     for line in ch_data:
@@ -60,36 +81,39 @@ if __name__ == '__main__':
     en_num_data = [[en2id[en] for en in line] for line in en_token_list]
     ch_num_data = [[ch2id[ch] for ch in line] for line in ch_token_list]
 
-    print("char:",ch_data[1])
-    print("index:",ch_num_data[1])
-
-
+    print("char:", ch_data[1])
+    print("index:", ch_num_data[1])
 
     INPUT_DIM = len(ch2id)
     OUTPUT_DIM = len(en2id)
 
-    #加载最优权重
-    for k,v in basic_dict.items():
-        print(k,v)
     bidirectional = True
-    enc = Encoder(INPUT_DIM,ENC_EMB_DIM,HID_DIM,N_LAYERS,ENC_DROPOUT,bidirectional)
-    dec = Decoder(OUTPUT_DIM,DEC_EMB_DIM,HID_DIM,N_LAYERS,DEC_DROPOUT,bidirectional)
-    model = Seq2seq(enc,dec,device,basic_dict=basic_dict).to(device)
+    enc = Encoder(INPUT_DIM, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT, bidirectional)
+    dec = Decoder(OUTPUT_DIM, DEC_EMB_DIM, HID_DIM, N_LAYERS, DEC_DROPOUT, bidirectional)
+    model = Seq2seq(enc, dec, device, basic_dict=basic_dict).to(device)
+    model.load_state_dict(torch.load('ch2en-model-word.pt'))
+    evaluateRandomly(ch_num_data,en_num_data,id2ch,id2en,model,10)
 
-    optimizer = optim.Adam(model.parameters(),lr=LEARNING_RATE)
-    model.load_state_dict(torch.load('ch2en-model.pt'))
-    random.seed(seed)
-    for i in random.sample(range(len(ch_num_data)),10):  #随机看10个
-        ch_tokens = list(filter(lambda  x : x!=0,ch_num_data[i]))
-        en_tokens = list(filter(lambda  x : x!=3 and x != 0, en_num_data[i]))
-        sentence = [id2ch[t] for t in ch_tokens]
-        print("【原文】")
-        print("".join(sentence))
-        translation = [id2en[t] for t in en_tokens]
-        print("【ground true】")
-        print("".join(translation))
-        test_sample = {}
-        test_sample["src"] = torch.tensor(ch_tokens,dtype=torch.long,device=device).reshape(-1,1)
-        test_sample["src_len"] = [len(ch_tokens)]
-        print("【机器翻译】")
-        print(translate(model,test_sample,id2en),end="\n\n")
+    # bidirectional = True
+    # enc = Encoder(INPUT_DIM, ENC_EMB_DIM, HID_DIM, N_LAYERS, ENC_DROPOUT, bidirectional)
+    # dec = Decoder(OUTPUT_DIM, DEC_EMB_DIM, HID_DIM, N_LAYERS, DEC_DROPOUT, bidirectional)
+    # model = Seq2seq(enc, dec, device, basic_dict=basic_dict).to(device)
+    #
+    # optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    # model.load_state_dict(torch.load('ch2en-model-word.pt'))
+    #
+    # random.seed(seed)
+    # for i in random.sample(range(len(ch_num_data)), 10):  # 随机看10个
+    #     ch_tokens = list(filter(lambda x: x != 0, ch_num_data[i]))
+    #     en_tokens = list(filter(lambda x: x != 3 and x != 0, en_num_data[i]))
+    #     sentence = [id2ch[t] for t in ch_tokens]
+    #     print("【原文】")
+    #     print("".join(sentence))
+    #     translation = [id2en[t] for t in en_tokens]
+    #     print("【人为翻译】")
+    #     print(" ".join(translation))
+    #     test_sample = {}
+    #     test_sample["src"] = torch.tensor(ch_tokens, dtype=torch.long, device=device).reshape(-1, 1)
+    #     test_sample["src_len"] = [len(ch_tokens)]
+    #     print("【机器翻译】")
+    #     print(translate(model, test_sample, id2en), end="\n\n")
